@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Three.js Game Scene</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+
+
+
+/* Green "Add to Cart" button */
+
+
+  .menu button {
+    margin: 5px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    background: #e20d0d;
+    color: white;
+    cursor: pointer;
+  bottom: 80px;
+  right: 269px;
+
+
+
+  }
+
+  .menu button:hover {
+    background: #5a5a5a;
+  }
+
+
+
+
+  #Confirm{
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #faf6f6;
+      top: 10%;
+      left: 50%;
+        padding: 10px 10px;
+
+    
+  }
+
+
+    #crosshair {
+      --crosshair-color: white;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin-left: -10px;
+      margin-top: -10px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    #crosshair:before, #crosshair:after {
+      content: '';
+      position: absolute;
+      background: var(--crosshair-color, white);
+    }
+
+    #crosshair:before {
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      margin-left: -1px;
+    }
+
+    #crosshair:after {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      margin-top: -1px;
+    }
+
+    
+
+  </style>
+</head>
+<body>
+  
+
+<video id="video" loop muted playsinline style="display: none;">
+  <source src="./paramount-logo.mp4" type="video/mp4" />
+</video>
+
+
+<!-- the first menuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu -->
+
+
+
+<!-- Purchase Confirmation Menu -->
+
+
+<!--  <button onclick="confirmPurchase()">Confirm</button>
+  <button onclick="closeMenus()">Cancel</button>
+-->
+
+</div> 
+
+
+
+
+
+  <div> </div>
+</div>
+
+
+ <div id="crosshair"></div>
+<div id="label"></div>
+<div id="label1"> </div>
+<div id="label2"> </div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { AnimationMixer } from 'three';
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
+
+
+
+let seatInfo1=1;
+let gunScene = null; // declare globally
+let gunAnimated= null;
+let cube1=null;
+let gunAnimatedMixer = null;
+let mouseDown = false;
+
+let toads = []; // store all toads
+let toadMixers = [];
+
+let price;
+let camera, scene, renderer, mixer;
+let clock = new THREE.Clock();
+const movement = { forward: false, back: false, left: false, right: false, up: false, down: false };
+const yawObject = new THREE.Object3D();
+const pitchObject = new THREE.Object3D();
+const loader = new GLTFLoader();
+let mouse = new THREE.Vector2(0, 0);
+let selectedSeat = null;
+let menuOpen = false;
+let selectedSeatPrice = 0;
+
+let cube019 = null;
+
+let velocity = new THREE.Vector3();
+const gravity = -0.05;
+const playerHeight = 2.5;
+
+const down = new THREE.Vector3(0, -1, 0);
+const raycaster = new THREE.Raycaster();
+const collisionRaycaster = new THREE.Raycaster();
+
+// 🔫 Bullet hole texture + material
+const bulletHoleTexture = new THREE.TextureLoader().load('/bulletHole.png');
+const bulletHoleMaterial = new THREE.MeshBasicMaterial({
+  map: bulletHoleTexture,
+  transparent: true,
+  depthWrite: false
+});
+
+let canJump = false;
+
+// These are now exposed globally
+init();
+animate();
+
+// Create video texture and material
+const video = document.getElementById("video");
+
+window.addEventListener("click", () => {
+  video.play().catch(console.error); // start on first click
+});
+
+const videoTexture = new THREE.VideoTexture(video);
+videoTexture.minFilter = THREE.LinearFilter;
+videoTexture.magFilter = THREE.LinearFilter;
+videoTexture.format = THREE.RGBAFormat;
+
+const videoMaterial = new THREE.MeshBasicMaterial({
+  map: videoTexture,
+  side: THREE.DoubleSide
+});
+
+function init() {
+  scene = new THREE.Scene();
+
+
+  
+
+const exrLoader = new EXRLoader();
+exrLoader.load('sky.exr', (texture) => {
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+
+  scene.background = texture;
+  scene.environment = texture;
+
+  // Fix overbrightness
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0; // try 0.5 if still too bright
+});
+
+
+  camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 70);
+  camera.up.set(0, 1, 0);
+  //camera.rotation.z = Math.PI; // upside down
+
+  yawObject.add(pitchObject);
+  pitchObject.add(camera);
+  scene.add(yawObject);
+
+  // Spawn player higher
+  yawObject.position.set(0, 500, 0); // X=0, Y=10 (height), Z=0
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x111111);
+  document.body.appendChild(renderer.domElement);
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
+  scene.add(hemi);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 0.4);
+  sun.position.set(5, 10, 7);
+  scene.add(sun);
+
+
+
+
+  loader.load('/recoil123.glb', (gltf) => {
+    gunAnimated = gltf.scene;
+    camera.add(gunAnimated);
+    gunAnimated.scale.set(0.1, 0.1, 0.1);
+    gunAnimated.position.set(-0.6, -0.7, -1.1);
+    gunAnimated.rotation.set(0, -1.3, -0.2);
+
+    // Start hidden
+    gunAnimated.visible = false;
+
+    if (gltf.animations && gltf.animations.length) {
+      gunAnimatedMixer = new THREE.AnimationMixer(gunAnimated);
+
+      // Play all animations in the file (you can choose one if needed)
+      gltf.animations.forEach((clip) => {
+        gunAnimatedMixer.clipAction(clip).play();
+      });
+    }
+
+    console.log("🔫 Animated gun loaded and attached to camera");
+  });
+
+  loader.load('/block.glb', (gltf) => {
+    cube1 = gltf.scene;
+    camera.add(cube1);
+    cube1.scale.set(0.1, 0.1, 0.1);
+    cube1.position.set(18, -3, 10);
+    cube1.rotation.set(0, 0, 0);
+
+    // Start hidden
+    cube1.visible = true;
+
+    console.log("🔫 Animated gun loaded and attached to camera");
+  });
+
+
+
+
+  loader.load('/toad.glb', (gltf) => {
+    for (let i = 0; i < 5; i++) {
+      // Clone the toad
+      const toad = gltf.scene.clone(true);
+      scene.add(toad);
+
+      // Scale each
+      toad.scale.set(0.05, 0.05, 0.05);
+
+      // Give each a random spawn position near the world origin
+      toad.position.set(
+        (Math.random() - 0.5) * 20, // random X between -10 and 10
+        0,                          // ground
+        (Math.random() - 0.5) * 20  // random Z between -10 and 10
+      );
+
+      // Add to arrays
+      toads.push(toad);
+
+      // If animations exist, create mixers for each
+      if (gltf.animations && gltf.animations.length) {
+        const mixer = new THREE.AnimationMixer(toad);
+        gltf.animations.forEach((clip) => {
+          mixer.clipAction(clip).play();
+        });
+        toadMixers.push(mixer);
+      }
+    }
+
+
+
+
+    setInterval(() => {
+    const newToad = gltf.scene.clone(true);
+    scene.add(newToad);
+    newToad.scale.set(0.05, 0.05, 0.05);
+    newToad.position.set(
+      (Math.random() - 0.5) * 20,
+      0,
+      (Math.random() - 0.5) * 20
+    );
+
+    if (gltf.animations && gltf.animations.length) {
+      const mixer = new THREE.AnimationMixer(newToad);
+      gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+      toadMixers.push(mixer);
+    }
+
+    toads.push(newToad);
+    console.log("🐸 New toad spawned, total:", toads.length);
+  }, 5000); // every 5 seconds
+
+    console.log("🐸 Spawned", toads.length, "toads");
+  });
+
+
+
+
+
+
+  loader.load('/recoil123.glb', (gltf) => {
+    gunScene = gltf.scene;
+    camera.add(gunScene);
+    gunScene.scale.set(0.1, 0.1, 0.1);
+    gunScene.position.set(-0.5, -0.5, -1.9);
+    gunScene.rotation.set(0, -1.5, -0.2);
+
+    // Start visible
+    gunScene.visible = true;
+
+    console.log("🔫 Static gun loaded and attached to camera");
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'y' && gunScene && gunAnimated) {
+      const showAnimated = !gunAnimated.visible;
+      gunAnimated.visible = showAnimated;
+      gunScene.visible = !showAnimated; // static gun is opposite
+      console.log("🔫 Static gun visible:", gunScene.visible, "Animated gun visible:", gunAnimated.visible);
+    }
+  });
+
+
+
+
+
+  document.addEventListener('mousedown', (e) => {
+  if (e.button === 0) { // Left mouse button
+    mouseDown = true;
+
+    if (gunAnimatedMixer) {
+      gunAnimatedMixer._actions.forEach(action => action.play());
+    }
+
+    // Raycast from screen center
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+    // Collect all meshes
+    const objectsToCheck = [];
+    scene.traverse(child => {
+      if (child.isMesh) objectsToCheck.push(child);
+    });
+
+    const intersects = raycaster.intersectObjects(objectsToCheck, true);
+
+    if (intersects.length > 0) {
+      const hit = intersects[0];
+
+      // Spawn bullet hole
+      const holeSize = 0.2;
+      const holeGeometry = new THREE.PlaneGeometry(holeSize, holeSize);
+      const bulletHole = new THREE.Mesh(holeGeometry, bulletHoleMaterial);
+      bulletHole.position.copy(hit.point);
+
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
+      const worldNormal = hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
+      bulletHole.lookAt(bulletHole.position.clone().add(worldNormal));
+      bulletHole.position.add(worldNormal.multiplyScalar(0.01));
+      scene.add(bulletHole);
+
+      // Make frog invisible if clicked
+      for (let i = 0; i < toads.length; i++) {
+        if (toads[i].getObjectById(hit.object.id)) { // checks nested meshes
+          toads[i].visible = false;
+          console.log("🐸 Toad is now invisible!");
+          break;
+        }
+      }
+    }
+  }
+});
+
+
+
+
+  document.addEventListener('mouseup', (e) => {
+    if (e.button === 0) {
+      mouseDown = false;
+
+      if (gunAnimatedMixer) {
+        // Stop/pause all animations
+        gunAnimatedMixer._actions.forEach(action => action.stop());
+      }
+    }
+  });
+
+  // ✅ Right mouse button → shoot bullet holes
+  const bulletHoleTexture = new THREE.TextureLoader().load('/bulletHole.png');
+  const bulletHoleMaterial = new THREE.MeshBasicMaterial({
+    map: bulletHoleTexture,
+    transparent: true,
+    depthWrite: false
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    if (e.button === 2) { // Right mouse button
+      // Cast ray from screen center
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      console.log("👉 Intersects:", intersects);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0];
+
+        // Debug cube (instead of bullet hole)
+        const testGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        const testMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const cube = new THREE.Mesh(testGeo, testMat);
+        cube.position.copy(hit.point);
+        scene.add(cube);
+
+        console.log("💥 Hit at:", hit.point, "on object:", hit.object.name);
+      }
+    }
+  });
+
+  loader.load('/model.glb', (gltf) => {
+    scene.add(gltf.scene); // keep world hierarchy intact
+
+    gltf.scene.traverse((child) => {
+      if (child.name === "Cube.019") {
+        cube019 = child;
+        console.log("✅ Found Cube.019, will follow player");
+      }
+
+      if (child.isMesh) {
+        // Attach gun to camera
+        if (child.name === "Cube.346") {
+          // Remove from world before attaching
+          child.parent.remove(child);
+          camera.add(child);
+
+          child.position.set(0.3, -0.25, -1); // tweak position
+          child.rotation.set(0, Math.PI, 0);  // flip if backwards
+
+          // Optional: always render on top
+          child.material.depthTest = false;
+          child.renderOrder = 999;
+
+          console.log("🔫 Gun attached to camera");
+        }
+
+        // Plane video screen
+        if (child.name === "Plane") {
+          child.material = videoMaterial;
+          child.rotation.x = Math.PI / 2;
+          child.scale.x *= -1;
+          console.log("✅ Video material applied to plane");
+        }
+      }
+    });
+
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new AnimationMixer(gltf.scene);
+      gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+    }
+  });
+
+  //aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+  document.body.addEventListener('click', (e) => {
+    // Only request pointer lock if clicking the canvas or empty area
+    if (e.target === renderer.domElement) {
+      document.body.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === document.body) {
+      document.addEventListener('mousemove', onMouseMove, false);
+    } else {
+      document.removeEventListener('mousemove', onMouseMove, false);
+    }
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    // Skip if clicking any UI element (like a menu or button)
+    if (
+      e.target.closest('.menu') ||     // menu container
+      e.target.tagName === 'BUTTON' || // any button
+      e.target.closest('button')       // just in case the button contains spans
+    ) {
+      return;
+    }
+
+    //  Only process 3D clicks if pointer lock is active
+    if (document.pointerLockElement !== document.body) return;
+
+    //  Raycasting logic for selecting seats
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    for (let i = 0; i < intersects.length; i++) {
+      const obj = intersects[i].object;
+      if (obj.name && obj.name.startsWith('SEAT')) {
+        selectedSeat = obj;
+        teleportToSeat(obj);
+
+        let price = 25.00; // default price
+
+        if (obj.name.startsWith('SEAT_B39')) price = 23.00;
+        else if (obj.name.startsWith('SEAT_C31')) price = 29.99;
+
+        showConfirmMenu(price);
+        break;
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  document.addEventListener('keydown', (e) => setKey(e.key.toLowerCase(), true));
+  document.addEventListener('keyup', (e) => setKey(e.key.toLowerCase(), false));
+}
+
+//TELEPORTING TO THE SEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+function updatePlayer(delta) {
+  // --- Gravity ---
+  velocity.y += gravity * delta * 60;
+  yawObject.position.y += velocity.y;
+
+  // --- Ground collision ---
+  raycaster.set(yawObject.position, down);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  if (intersects.length > 0 && intersects[0].distance < playerHeight) {
+    yawObject.position.y = intersects[0].point.y + playerHeight;
+    velocity.y = 0;
+    canJump = true;
+  }
+
+  // --- Horizontal movement ---
+  const move = new THREE.Vector3();
+  if (movement.forward) move.z -= 1;
+  if (movement.back) move.z += 1;
+  if (movement.left) move.x -= 1;
+  if (movement.right) move.x += 1;
+
+  if (move.length() > 0) {
+    move.normalize();
+    move.applyQuaternion(yawObject.quaternion);
+    move.multiplyScalar(5 * delta);
+
+    let blocked = false;
+
+    // 🚧 Detect object directly in front
+    if (movement.forward) {
+      const front = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+      const rayOrigin = yawObject.position.clone();
+      rayOrigin.y += playerHeight / 2; // check from chest height
+      collisionRaycaster.set(rayOrigin, front);
+      const collisions = collisionRaycaster.intersectObjects(scene.children, true);
+
+      if (collisions.length > 0 && collisions[0].distance < 5.0) {
+        blocked = true; // too close to object in front
+      }
+    }
+
+    if (!blocked) {
+      yawObject.position.add(move);
+    }
+  }
+}
+
+function setKey(key, state) {
+  if (key === 'w') movement.forward = state;
+  if (key === 's') movement.back = state;
+  if (key === 'a') movement.left = state;
+  if (key === 'd') movement.right = state;
+  if (key === 'q') movement.down = state;
+  if (key === 'e') movement.up = state;
+}
+
+function onMouseMove(e) {
+  yawObject.rotation.y -= e.movementX * 0.002;
+  pitchObject.rotation.x -= e.movementY * 0.002;
+  pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+
+  if (mixer) mixer.update(delta);
+  
+  updatePlayer(delta);
+
+  if (gunAnimatedMixer && mouseDown) {
+    gunAnimatedMixer.update(delta); // update animations only while holding left mouse
+  } 
+  gunAnimatedMixer.update(delta); // update animations only while holding left mouse
+
+  // ✅ call gravity + collision update here
+  //updatePlayer(delta);
+
+  const velocity = new THREE.Vector3();
+  const speed = 20;
+
+  // --- Update toad animations ---
+  if (toads.length > 0 && cube1) {
+    // Get the block's world position once
+    const blockTarget = new THREE.Vector3();
+    cube1.getWorldPosition(blockTarget);
+
+    // Loop over every toad
+    toads.forEach((toad) => {
+      const dir = blockTarget.clone().sub(toad.position);
+      const distance = dir.length();
+
+      if (distance > 0.01) { // small threshold
+        dir.normalize();
+        const toadSpeed = 5; // adjust speed
+        toad.position.add(dir.multiplyScalar(toadSpeed * delta));
+      }
+
+      // Make the toad face the block
+      toad.lookAt(blockTarget);
+    });
+  }
+
+  if (movement.forward) velocity.z -= 5;
+  if (movement.back) velocity.z += 5;
+  if (movement.left) velocity.x -= 5;
+  if (movement.right) velocity.x += 5;
+  if (movement.up) velocity.y += 20;
+  if (movement.down) velocity.y -= 5;
+
+  velocity.normalize().applyQuaternion(yawObject.quaternion);
+  yawObject.position.addScaledVector(velocity, delta * speed);
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  const label = document.getElementById('label');
+  
+  let found = false;
+
+  for (let i = 0; i < intersects.length; i++) {
+    const obj = intersects[i].object;
+
+    if (obj.name && obj.name.startsWith('SEAT_Z27')) {
+    }
+    if (obj.name && obj.name.startsWith('Plane')) {
+      label2.textContent = "Plane";
+    }
+
+    if (obj.name && obj.name.startsWith('SEAT')) {
+      label.textContent = obj.name.replace(/_/g, ' ').slice(0, 8);
+      label1.textContent = "Click to order";
+
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) label.textContent = '';
+  if (!found) label1.textContent = '';
+  if (!found) label2.textContent = '';
+
+  renderer.render(scene, camera);
+}
+</script>
+
+</body>
+</html>

@@ -41,7 +41,7 @@ o	Crosshair drawn with CSS (#crosshair).
 o	Labels (#label, #label1, #label2) updated in animate() loop.
 o	Menu system sketched out with styled buttons (.menu button).
 ________________________________________
-🎮 Controls
+ Controls
 •	WASD → Move
 •	Mouse → Look around
 •	Left Click → Shoot (recoil animation + bullet holes + frog removal)
@@ -49,7 +49,7 @@ ________________________________________
 •	Y → Toggle static ↔ animated gun
 •	Click on Seat → Teleport to seat + open purchase menu
 ________________________________________
-📖 What I Did / Learned
+ What I Did / Learned
 From looking at the code and building assets, this project required combining both 3D art skills and game programming skills:
 •	Modeled, textured, and animated assets in Blender, exporting them to .glb.
 •	Integrated multiple GLTF models into Three.js, attaching some to the camera (gun) and leaving others in-world (frogs, seats).

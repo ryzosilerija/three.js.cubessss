@@ -16,7 +16,7 @@ o	HDR sky environment (sky.exr) imported with EXRLoader.
 o	Applied as both scene background and reflection map.
 o	Balanced brightness using ACESFilmicToneMapping and toneMappingExposure.
 ________________________________________
-💻 Three.js Code & Game Mechanics
+Three.js Code & Game Mechanics
 •	Scene Setup (init() in code)
 o	Camera wrapped inside yaw/pitch objects for FPS-style mouse look.
 o	Player spawns high in the world (yawObject.position.set(0, 500, 0)).
